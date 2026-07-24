@@ -6,118 +6,87 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#191233">
-<title>유튜브 구간이동</title>
+<title>유튜브 · 내 영상 구간이동</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #f0f1f8;
-    background: #14101f;
-    overflow: hidden;
+    color: #f0f1f8; background: #14101f; overflow: hidden;
     user-select: none; -webkit-user-select: none;
   }
 
-  /* ── 배경 ── */
-  .bg {
-    position: fixed; inset: 0; z-index: -1; overflow: hidden;
-    background: linear-gradient(160deg, #191233 0%, #140f26 55%, #0f0c1e 100%);
-  }
-  .bg span {
-    position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5;
-    animation: float 14s ease-in-out infinite;
-  }
+  /* 배경 */
+  .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden;
+    background: linear-gradient(160deg, #191233 0%, #140f26 55%, #0f0c1e 100%); }
+  .bg span { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5; animation: float 14s ease-in-out infinite; }
   .bg span:nth-child(1) { width: 280px; height: 280px; background: #7c4dff; top: -60px; left: -60px; }
   .bg span:nth-child(2) { width: 260px; height: 260px; background: #2196f3; bottom: -80px; right: -60px; animation-delay: -5s; }
   .bg span:nth-child(3) { width: 200px; height: 200px; background: #ff4d94; top: 40%; right: -80px; animation-delay: -9s; opacity: 0.3; }
   @keyframes float { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(18px,-22px) scale(1.08);} }
   @media (prefers-reduced-motion: reduce) { .bg span { animation: none; } }
 
-  /* ── 전체 레이아웃 ── */
-  .app {
-    height: 100vh; height: 100dvh;
-    display: flex; flex-direction: column;
-    gap: 10px;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  }
-
-  .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .videowrap {
-    position: relative; aspect-ratio: 16 / 9;
-    background: #000; border-radius: 16px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 12px 34px rgba(0,0,0,0.55);
-    display: flex; align-items: center; justify-content: center;
-  }
+  /* 레이아웃 */
+  .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; gap: 10px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+  .stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .videowrap { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: 16px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 12px 34px rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; }
   @media (orientation: portrait)  { .videowrap { width: 100%; max-height: 100%; } }
   @media (orientation: landscape) { .videowrap { height: 100%; max-width: 100%; } }
   #player { width: 100%; height: 100%; }
+  #localVideo { width: 100%; height: 100%; object-fit: contain; background: #000; display: none; }
 
   .placeholder { width: 100%; color: #6b7095; font-size: 13.5px; text-align: center; padding: 20px; line-height: 1.7; }
   .placeholder .big { font-size: 30px; display: block; margin-bottom: 6px; }
-  .status-msg {
-    position: absolute; inset: 0; display: none;
-    align-items: center; justify-content: center; text-align: center;
-    background: rgba(10,8,20,0.85); backdrop-filter: blur(4px);
-    color: #ffb74d; font-size: 13.5px; padding: 20px; line-height: 1.6;
-  }
+  .status-msg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center;
+    background: rgba(10,8,20,0.85); backdrop-filter: blur(4px); color: #ffb74d; font-size: 13.5px; padding: 20px; line-height: 1.6; }
   .status-msg.show { display: flex; }
-  .seek-toast {
-    position: absolute; top: 50%; left: 50%; z-index: 5;
-    transform: translate(-50%,-50%) scale(0.75); opacity: 0;
-    background: rgba(15,12,28,0.72); backdrop-filter: blur(6px);
-    padding: 10px 20px; border-radius: 999px;
-    font-size: 18px; font-weight: 800; letter-spacing: 0.5px;
-    pointer-events: none; border: 1px solid rgba(255,255,255,0.12);
-    transition: opacity 0.22s ease, transform 0.22s ease;
-  }
+  .seek-toast { position: absolute; top: 50%; left: 50%; z-index: 5; transform: translate(-50%,-50%) scale(0.75); opacity: 0;
+    background: rgba(15,12,28,0.72); backdrop-filter: blur(6px); padding: 10px 20px; border-radius: 999px;
+    font-size: 18px; font-weight: 800; letter-spacing: 0.5px; pointer-events: none; border: 1px solid rgba(255,255,255,0.12);
+    transition: opacity 0.22s ease, transform 0.22s ease; }
   .seek-toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
   .seek-toast.back { color: #ff8a80; } .seek-toast.fwd { color: #80d8ff; } .seek-toast.rate { color: #d9b8ff; }
 
-  /* ── 컨트롤 패널 ── */
-  .panel {
-    flex-shrink: 0;
-    display: flex; flex-direction: column; gap: 10px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 20px; padding: 12px;
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  }
+  /* 패널 */
+  .panel { flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 20px; padding: 12px;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+
+  /* 탭 */
+  .tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.25); border-radius: 12px; padding: 4px; }
+  .tab { flex: 1; height: 36px; border: none; border-radius: 9px; background: transparent; color: #9498c0;
+    font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: linear-gradient(135deg,#4fc3f7,#7c4dff); color: #0e1224; }
 
   .url-row { display: flex; gap: 8px; }
   .input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
   .input-wrap svg { position: absolute; left: 12px; width: 15px; height: 15px; color: #7a83a8; pointer-events: none; }
-  #urlInput {
-    width: 100%; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.28); color: #eee; padding: 0 12px 0 34px; font-size: 14px; outline: none;
-    transition: border-color 0.15s, background 0.15s;
-  }
+  #urlInput { width: 100%; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.28); color: #eee; padding: 0 12px 0 34px; font-size: 14px; outline: none; transition: border-color 0.15s, background 0.15s; }
   #urlInput::placeholder { color: #6b7095; }
   #urlInput:focus { border-color: #7c9dff; background: rgba(0,0,0,0.4); }
-  #loadBtn {
-    height: 44px; padding: 0 18px; border-radius: 12px; border: none;
-    background: linear-gradient(135deg, #4fc3f7, #7c4dff); color: #0e1224;
-    font-weight: 800; font-size: 14px; cursor: pointer; white-space: nowrap;
-    box-shadow: 0 6px 18px rgba(124,77,255,0.35);
-    transition: transform 0.12s;
-  }
+  #loadBtn { height: 44px; padding: 0 18px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #4fc3f7, #7c4dff); color: #0e1224; font-weight: 800; font-size: 14px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(124,77,255,0.35); transition: transform 0.12s; }
   #loadBtn:active { transform: scale(0.95); }
+
+  .pick-btn { width: 100%; height: 48px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.04); color: #c7cae8; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.12s; }
+  .pick-btn:active { background: rgba(255,255,255,0.09); }
+  .fname { font-size: 11.5px; color: #7f83a8; text-align: center; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .progress-track { width: 100%; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg,#4fc3f7,#7c4dff); transition: width 0.25s linear; }
   .time-row { display: flex; justify-content: center; gap: 8px; font-size: 12.5px; color: #9498c0; font-variant-numeric: tabular-nums; }
 
-  /* 라벨 */
   .label { font-size: 11px; font-weight: 700; color: #7f83a8; letter-spacing: 0.5px; margin: 0 2px; }
 
-  /* 구간이동 버튼 */
   .seek-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
-  .seek-btn {
-    height: 60px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.07);
-    background: rgba(255,255,255,0.045); color: #eee; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    transition: transform 0.1s, background 0.12s;
-  }
+  .seek-btn { height: 60px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.045);
+    color: #eee; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: transform 0.1s, background 0.12s; }
   .seek-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.1); }
   .icon-badge { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
   .seek-btn.back .icon-badge { background: rgba(239,83,80,0.16); } .seek-btn.back svg { color: #ff8a80; }
@@ -126,43 +95,23 @@
 
   /* 속도 슬라이더 */
   .speed-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px; }
-  .speed-val {
-    font-size: 14px; font-weight: 800; color: #0e1224;
-    background: linear-gradient(135deg,#4fc3f7,#7c4dff);
-    padding: 2px 10px; border-radius: 999px; cursor: pointer; letter-spacing: 0.3px;
-    font-variant-numeric: tabular-nums;
-  }
-  .speed-slider {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 8px;
-    border-radius: 999px; outline: none; margin: 4px 0 2px;
-    background: rgba(255,255,255,0.12);
-  }
-  .speed-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%;
-    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.45); border: 2px solid #fff;
-  }
-  .speed-slider::-moz-range-thumb {
-    width: 24px; height: 24px; border-radius: 50%;
-    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; border: 2px solid #fff;
-  }
+  .speed-val { font-size: 14px; font-weight: 800; color: #0e1224; background: linear-gradient(135deg,#4fc3f7,#7c4dff);
+    padding: 2px 10px; border-radius: 999px; cursor: pointer; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+  .speed-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px; outline: none; margin: 4px 0 2px; background: rgba(255,255,255,0.12); }
+  .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.45); border: 2px solid #fff; }
+  .speed-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; border: 2px solid #fff; }
   .speed-ticks { display: flex; justify-content: space-between; font-size: 10px; color: #6b7095; margin: 0 2px; }
 
-  /* 하단 토글 */
-  .bottom-row { display: flex; align-items: center; gap: 10px; }
-  .toggle {
-    display: flex; align-items: center; gap: 8px; cursor: pointer;
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 12px; padding: 8px 12px; flex: 1;
-  }
+  .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 8px 12px; }
   .switch { width: 40px; height: 23px; border-radius: 999px; background: rgba(255,255,255,0.15); position: relative; transition: background 0.18s; flex-shrink: 0; }
   .switch::after { content:''; position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%; background:#fff; transition: transform 0.18s; }
   .toggle.on .switch { background: linear-gradient(135deg,#4fc3f7,#7c4dff); }
   .toggle.on .switch::after { transform: translateX(17px); }
   .toggle .txt { font-size: 12.5px; font-weight: 600; color: #c7cae8; }
-  .hint { font-size: 11px; color: #6b7095; line-height: 1.5; flex: 1; }
+  .hint { font-size: 11px; color: #6b7095; line-height: 1.5; }
 
-  /* ── 가로모드: 영상 크게, 패널 오른쪽 ── */
   @media (orientation: landscape) {
     .app { flex-direction: row; gap: 12px; }
     .stage { flex: 1; }
@@ -175,21 +124,40 @@
 
 <div class="app">
   <div class="stage">
-    <div class="videowrap" id="playerBox">
-      <div class="placeholder" id="placeholder"><span class="big">▶</span>링크를 붙여넣고 불러오기를 눌러주세요<br><span style="font-size:11px;opacity:0.7">폰을 가로로 돌리면 화면이 커져요</span></div>
+    <!-- 유튜브 -->
+    <div class="videowrap" id="ytBox">
+      <div class="placeholder" id="ytPlaceholder"><span class="big">▶</span>링크를 붙여넣고 불러오기를 눌러주세요<br><span style="font-size:11px;opacity:0.7">폰을 가로로 돌리면 화면이 커져요</span></div>
       <div id="player"></div>
-      <div class="seek-toast" id="seekToast"></div>
       <div class="status-msg" id="statusMsg"></div>
     </div>
+    <!-- 내 파일 -->
+    <div class="videowrap" id="localBox" style="display:none">
+      <div class="placeholder" id="localPlaceholder"><span class="big">📁</span>갤러리에서 영상을 선택하세요<br><span style="font-size:11px;opacity:0.7">파일은 폰 밖으로 나가지 않아요</span></div>
+      <video id="localVideo" playsinline controls></video>
+    </div>
+    <div class="seek-toast" id="seekToast"></div>
   </div>
 
   <div class="panel">
-    <div class="url-row">
+    <div class="tabs">
+      <button class="tab active" data-mode="yt">유튜브</button>
+      <button class="tab" data-mode="local">내 파일</button>
+    </div>
+
+    <!-- 유튜브 컨트롤 -->
+    <div class="url-row" id="ytControls">
       <div class="input-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.49-1.49"/></svg>
         <input id="urlInput" type="text" placeholder="유튜브 링크 또는 영상 ID" inputmode="url">
       </div>
       <button id="loadBtn">불러오기</button>
+    </div>
+
+    <!-- 내 파일 컨트롤 -->
+    <div id="fileControls" style="display:none">
+      <input type="file" id="fileInput" accept="video/*" style="display:none">
+      <button class="pick-btn" id="pickBtn">📁 갤러리에서 영상 선택</button>
+      <div class="fname" id="fname"></div>
     </div>
 
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
@@ -210,162 +178,145 @@
       <span class="speed-val" id="speedVal">1×</span>
     </div>
     <input type="range" class="speed-slider" id="speedSlider" min="0.5" max="1" step="0.25" value="1">
-    <div class="speed-ticks"><span>0.5×</span><span>0.75×</span><span>1×</span></div>
+    <div class="speed-ticks" id="speedTicks"><span>0.5×</span><span>0.75×</span><span>1×</span></div>
 
-    <div class="bottom-row">
-      <div class="toggle on" id="wakeToggle">
-        <div class="switch"></div>
-        <span class="txt">화면 꺼짐 방지</span>
-      </div>
-    </div>
-    <div class="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
+    <div class="toggle on" id="wakeToggle"><div class="switch"></div><span class="txt">화면 꺼짐 방지</span></div>
+    <div class="hint" id="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
   </div>
 </div>
 
 <script>
+  let mode = 'yt';                 // 'yt' | 'local'
   let player = null, ytReady = false;
+  let ytRate = 1, localRate = 1;   // 모드별 배속 기억
   let currentRate = 1;
   let keepAwake = true, wakeLock = null;
 
-  const urlInput = document.getElementById('urlInput');
-  const loadBtn = document.getElementById('loadBtn');
-  const placeholder = document.getElementById('placeholder');
-  const statusMsg = document.getElementById('statusMsg');
-  const timeRow = document.getElementById('timeRow');
-  const playerBox = document.getElementById('playerBox');
-  const seekToast = document.getElementById('seekToast');
-  const progressFill = document.getElementById('progressFill');
-  const speedSlider = document.getElementById('speedSlider');
-  const speedVal = document.getElementById('speedVal');
-  const wakeToggle = document.getElementById('wakeToggle');
+  const $ = id => document.getElementById(id);
+  const urlInput = $('urlInput'), loadBtn = $('loadBtn');
+  const ytBox = $('ytBox'), localBox = $('localBox');
+  const ytPlaceholder = $('ytPlaceholder'), localPlaceholder = $('localPlaceholder');
+  const statusMsg = $('statusMsg'), timeRow = $('timeRow'), progressFill = $('progressFill');
+  const seekToast = $('seekToast');
+  const ytControls = $('ytControls'), fileControls = $('fileControls');
+  const fileInput = $('fileInput'), pickBtn = $('pickBtn'), fname = $('fname');
+  const localVideo = $('localVideo');
+  const speedSlider = $('speedSlider'), speedVal = $('speedVal'), speedTicks = $('speedTicks');
+  const wakeToggle = $('wakeToggle'), hint = $('hint');
 
-  function extractId(input) {
-    input = input.trim();
-    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
-    const patterns = [
-      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-      /[?&]v=([a-zA-Z0-9_-]{11})/
-    ];
-    for (const p of patterns) { const m = input.match(p); if (m) return m[1]; }
-    return null;
-  }
-  function fmt(t) {
-    if (!isFinite(t) || t < 0) t = 0;
-    const m = Math.floor(t / 60), s = Math.floor(t % 60);
-    return m + ':' + String(s).padStart(2, '0');
-  }
+  // ── 공통 헬퍼 (활성 소스로 위임) ──
+  function curTime() { return mode==='yt' ? (player && player.getCurrentTime ? player.getCurrentTime() : 0) : (localVideo.currentTime || 0); }
+  function duration() { return mode==='yt' ? (player && player.getDuration ? player.getDuration() : 0) : (localVideo.duration || 0); }
+  function seekTo(t) { if (mode==='yt') { if (player && player.seekTo) player.seekTo(t, true); } else { localVideo.currentTime = t; } }
+  function setRate(r) { if (mode==='yt') { if (player && player.setPlaybackRate) player.setPlaybackRate(r); } else { localVideo.playbackRate = r; } }
+
+  function fmt(t) { if (!isFinite(t) || t < 0) t = 0; const m = Math.floor(t/60), s = Math.floor(t%60); return m + ':' + String(s).padStart(2,'0'); }
   function showStatus(t) { statusMsg.textContent = t; statusMsg.classList.add('show'); }
   function hideStatus() { statusMsg.classList.remove('show'); }
 
   let toastTimer = null;
-  function showToast(text, cls) {
-    seekToast.className = 'seek-toast show ' + cls;
-    seekToast.textContent = text;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => seekToast.classList.remove('show'), 550);
-  }
+  function showToast(text, cls) { seekToast.className = 'seek-toast show ' + cls; seekToast.textContent = text; clearTimeout(toastTimer); toastTimer = setTimeout(() => seekToast.classList.remove('show'), 550); }
 
-  // ── 화면 꺼짐 방지 (Wake Lock) ──
-  async function requestWakeLock() {
-    if (!keepAwake) return;
-    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
-  }
-  async function releaseWakeLock() {
-    try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch (e) {}
-  }
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && keepAwake && player) requestWakeLock();
-  });
-  wakeToggle.addEventListener('click', () => {
-    keepAwake = !keepAwake;
-    wakeToggle.classList.toggle('on', keepAwake);
-    if (keepAwake) requestWakeLock(); else releaseWakeLock();
-  });
+  // ── 화면 꺼짐 방지 ──
+  async function requestWakeLock() { if (!keepAwake) return; try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+  async function releaseWakeLock() { try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch(e){} }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible' && keepAwake) requestWakeLock(); });
+  wakeToggle.addEventListener('click', () => { keepAwake = !keepAwake; wakeToggle.classList.toggle('on', keepAwake); if (keepAwake) requestWakeLock(); else releaseWakeLock(); });
 
-  // ── YouTube IFrame API ──
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-  window.onYouTubeIframeAPIReady = () => { ytReady = true; };
-
-  function applyRate() { if (player && player.setPlaybackRate) player.setPlaybackRate(currentRate); }
-
-  function loadVideo(id) {
-    hideStatus();
-    placeholder.style.display = 'none';
-    requestWakeLock();
-    if (!ytReady) {
-      const wait = setInterval(() => { if (ytReady) { clearInterval(wait); loadVideo(id); } }, 150);
-      return;
-    }
-    if (player) { player.loadVideoById(id); applyRate(); return; }
-    player = new YT.Player('player', {
-      videoId: id,
-      playerVars: { playsinline: 1, rel: 0 },
-      events: {
-        onReady: () => applyRate(),
-        onStateChange: (e) => {
-          if (e.data === YT.PlayerState.PLAYING) { applyRate(); requestWakeLock(); }
-        },
-        onError: (e) => {
-          const codes = { 2:'잘못된 영상 ID예요.', 5:'재생할 수 없는 영상이에요.', 100:'영상을 찾을 수 없어요.', 101:'이 영상은 외부 재생이 차단되어 있어요.', 150:'이 영상은 외부 재생이 차단되어 있어요.' };
-          showStatus(codes[e.data] || '영상을 불러올 수 없어요.');
-        }
-      }
-    });
-  }
-
-  loadBtn.addEventListener('click', () => {
-    const id = extractId(urlInput.value);
-    if (!id) { placeholder.style.display = 'none'; showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; }
-    loadVideo(id);
-  });
-  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBtn.click(); });
-
-  // ── 구간 이동 ──
-  document.querySelectorAll('.seek-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!player || typeof player.getCurrentTime !== 'function') return;
-      const delta = parseFloat(btn.dataset.sec);
-      const dur = player.getDuration() || Infinity;
-      const t = Math.max(0, Math.min(dur, player.getCurrentTime() + delta));
-      player.seekTo(t, true);
-      showToast((delta > 0 ? '+' : '') + delta + '초', delta > 0 ? 'fwd' : 'back');
-    });
-  });
-
-  // ── 재생 속도 (슬라이더, 0.25 단위 스냅) ──
+  // ── 속도 슬라이더 ──
   function fillSlider() {
     const min = parseFloat(speedSlider.min), max = parseFloat(speedSlider.max);
     const pct = ((currentRate - min) / (max - min)) * 100;
-    speedSlider.style.background =
-      'linear-gradient(90deg, #4fc3f7 0%, #7c4dff ' + pct + '%, rgba(255,255,255,0.12) ' + pct + '%)';
+    speedSlider.style.background = 'linear-gradient(90deg, #4fc3f7 0%, #7c4dff ' + pct + '%, rgba(255,255,255,0.12) ' + pct + '%)';
   }
-  function setSpeed(r, toast) {
-    currentRate = r;
-    speedVal.textContent = (Number.isInteger(r) ? r : r) + '×';
-    speedSlider.value = r;
-    fillSlider();
-    applyRate();
-    if (toast) showToast(currentRate + '× 속도', 'rate');
+  function rateText(r) { return (Math.round(r*100)/100) + '×'; }
+  function configSpeedForMode() {
+    if (mode==='yt') { speedSlider.min='0.5'; speedSlider.max='1'; speedSlider.step='0.25'; speedTicks.innerHTML='<span>0.5×</span><span>0.75×</span><span>1×</span>'; currentRate = ytRate; }
+    else { speedSlider.min='0.25'; speedSlider.max='2'; speedSlider.step='0.05'; speedTicks.innerHTML='<span>0.25×</span><span>1×</span><span>2×</span>'; currentRate = localRate; }
+    speedSlider.value = currentRate; speedVal.textContent = rateText(currentRate); fillSlider();
   }
-  speedSlider.addEventListener('input', () => setSpeed(parseFloat(speedSlider.value), false));
-  speedSlider.addEventListener('change', () => showToast(currentRate + '× 속도', 'rate'));
-  speedVal.addEventListener('click', () => setSpeed(1, true)); // 탭하면 1×로 리셋
-  fillSlider();
+  speedSlider.addEventListener('input', () => {
+    currentRate = Math.round(parseFloat(speedSlider.value)*100)/100;
+    if (mode==='yt') ytRate = currentRate; else localRate = currentRate;
+    speedVal.textContent = rateText(currentRate); fillSlider(); setRate(currentRate);
+  });
+  speedSlider.addEventListener('change', () => showToast(rateText(currentRate) + ' 속도', 'rate'));
+  speedVal.addEventListener('click', () => { currentRate = 1; if (mode==='yt') ytRate=1; else localRate=1; speedSlider.value=1; speedVal.textContent='1×'; fillSlider(); setRate(1); showToast('1× 속도', 'rate'); });
 
-  // ── 진행 상태 ──
-  setInterval(() => {
-    if (player && typeof player.getCurrentTime === 'function' && player.getDuration) {
-      const dur = player.getDuration(), cur = player.getCurrentTime();
-      if (dur) {
-        timeRow.textContent = fmt(cur) + ' / ' + fmt(dur);
-        progressFill.style.width = Math.min(100, (cur / dur) * 100) + '%';
+  // ── 탭 전환 ──
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const m = tab.dataset.mode; if (m===mode) return;
+      if (mode==='yt') { if (player && player.pauseVideo) player.pauseVideo(); } else { localVideo.pause(); }
+      mode = m;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t===tab));
+      ytBox.style.display = m==='yt' ? 'flex' : 'none';
+      localBox.style.display = m==='local' ? 'flex' : 'none';
+      ytControls.style.display = m==='yt' ? 'flex' : 'none';
+      fileControls.style.display = m==='local' ? 'block' : 'none';
+      hint.textContent = m==='yt'
+        ? '임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.'
+        : '파일은 폰 안에서만 재생되고 어디에도 업로드되지 않아요. 0.05단위로 배속을 조절할 수 있어요.';
+      configSpeedForMode();
+    });
+  });
+
+  // ── YouTube ──
+  const tag = document.createElement('script'); tag.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(tag);
+  window.onYouTubeIframeAPIReady = () => { ytReady = true; };
+  function loadVideo(id) {
+    hideStatus(); ytPlaceholder.style.display = 'none'; requestWakeLock();
+    if (!ytReady) { const w = setInterval(() => { if (ytReady) { clearInterval(w); loadVideo(id); } }, 150); return; }
+    if (player) { player.loadVideoById(id); player.setPlaybackRate(ytRate); return; }
+    player = new YT.Player('player', {
+      videoId: id, playerVars: { playsinline: 1, rel: 0 },
+      events: {
+        onReady: () => player.setPlaybackRate(ytRate),
+        onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING) { player.setPlaybackRate(ytRate); requestWakeLock(); } },
+        onError: (e) => { const c = {2:'잘못된 영상 ID예요.',5:'재생할 수 없는 영상이에요.',100:'영상을 찾을 수 없어요.',101:'이 영상은 외부 재생이 차단되어 있어요.',150:'이 영상은 외부 재생이 차단되어 있어요.'}; showStatus(c[e.data] || '영상을 불러올 수 없어요.'); }
       }
-    }
-  }, 400);
+    });
+  }
+  function extractId(input) {
+    input = input.trim();
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+    const ps = [/youtu\.be\/([a-zA-Z0-9_-]{11})/, /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/, /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/, /[?&]v=([a-zA-Z0-9_-]{11})/];
+    for (const p of ps) { const m = input.match(p); if (m) return m[1]; } return null;
+  }
+  loadBtn.addEventListener('click', () => { const id = extractId(urlInput.value); if (!id) { ytPlaceholder.style.display='none'; showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; } loadVideo(id); });
+  urlInput.addEventListener('keydown', (e) => { if (e.key==='Enter') loadBtn.click(); });
+
+  // ── 내 파일 ──
+  pickBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0]; if (!f) return;
+    if (localVideo.src) URL.revokeObjectURL(localVideo.src);
+    localVideo.src = URL.createObjectURL(f);
+    fname.textContent = f.name;
+    localPlaceholder.style.display = 'none';
+    localVideo.style.display = 'block';
+    localVideo.playbackRate = localRate;
+    localVideo.play().catch(()=>{});
+    requestWakeLock();
+  });
+  localVideo.addEventListener('loadedmetadata', () => { localVideo.playbackRate = localRate; });
+  localVideo.addEventListener('play', () => requestWakeLock());
+
+  // ── 구간 이동 (공통) ──
+  document.querySelectorAll('.seek-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = duration(); if (!d) return;
+      const delta = parseFloat(btn.dataset.sec);
+      const t = Math.max(0, Math.min(d, curTime() + delta));
+      seekTo(t);
+      showToast((delta>0?'+':'') + delta + '초', delta>0?'fwd':'back');
+    });
+  });
+
+  // ── 진행 상태 (공통) ──
+  setInterval(() => { const d = duration(), c = curTime(); if (d) { timeRow.textContent = fmt(c) + ' / ' + fmt(d); progressFill.style.width = Math.min(100, (c/d)*100) + '%'; } }, 300);
+
+  fillSlider();
 </script>
 </body>
 </html>
