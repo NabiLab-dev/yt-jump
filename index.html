@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#191233">
+<title>유튜브 구간이동</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #f0f1f8;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    overflow-x: hidden;
+    background: #14101f;
+  }
+
+  /* ── 배경 그라데이션 & 은은한 블롭 ── */
+  .bg {
+    position: fixed; inset: 0; z-index: -1; overflow: hidden;
+    background: linear-gradient(160deg, #191233 0%, #140f26 55%, #0f0c1e 100%);
+  }
+  .bg span {
+    position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.55;
+    animation: float 14s ease-in-out infinite;
+  }
+  .bg span:nth-child(1) { width: 280px; height: 280px; background: #7c4dff; top: -60px; left: -60px; }
+  .bg span:nth-child(2) { width: 260px; height: 260px; background: #2196f3; bottom: -80px; right: -60px; animation-delay: -5s; }
+  .bg span:nth-child(3) { width: 200px; height: 200px; background: #ff4d94; top: 40%; right: -80px; animation-delay: -9s; opacity: 0.35; }
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(18px, -22px) scale(1.08); }
+  }
+  @media (prefers-reduced-motion: reduce) { .bg span { animation: none; } }
+
+  .wrap {
+    width: 100%; max-width: 440px;
+    display: flex; flex-direction: column; gap: 16px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 26px;
+    padding: 22px 18px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  h1 {
+    font-size: 19px; font-weight: 800; text-align: center; letter-spacing: 0.3px;
+    background: linear-gradient(90deg, #9fd8ff, #d9b8ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { text-align: center; font-size: 12px; color: #8f93b8; margin-top: -8px; }
+
+  .url-row { display: flex; gap: 8px; }
+  .input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+  .input-wrap svg { position: absolute; left: 14px; width: 16px; height: 16px; color: #7a83a8; pointer-events: none; }
+  #urlInput {
+    width: 100%; height: 48px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.28); color: #eee; padding: 0 14px 0 38px; font-size: 14.5px; outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  #urlInput::placeholder { color: #6b7095; }
+  #urlInput:focus { border-color: #7c9dff; background: rgba(0,0,0,0.4); }
+  #loadBtn {
+    height: 48px; padding: 0 20px; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, #4fc3f7, #7c4dff); color: #0e1224;
+    font-weight: 800; font-size: 14.5px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(124, 77, 255, 0.35);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  #loadBtn:active { transform: scale(0.95); box-shadow: 0 3px 10px rgba(124, 77, 255, 0.3); }
+
+  .player-box {
+    width: 100%; aspect-ratio: 16 / 9;
+    background: #000; border-radius: 18px; overflow: hidden;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.5);
+    transition: box-shadow 0.25s;
+  }
+  .player-box.pulse { box-shadow: 0 0 0 3px rgba(124, 149, 255, 0.55), 0 12px 32px rgba(0,0,0,0.5); }
+  #player { width: 100%; height: 100%; }
+  .placeholder { width: 100%; color: #6b7095; font-size: 13.5px; text-align: center; padding: 20px; line-height: 1.7; }
+  .placeholder .big { font-size: 30px; display: block; margin-bottom: 6px; }
+  .status-msg {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; text-align: center;
+    background: rgba(10,8,20,0.82); backdrop-filter: blur(4px);
+    color: #ffb74d; font-size: 13.5px; padding: 20px; line-height: 1.6;
+  }
+  .status-msg.show { display: flex; }
+
+  .seek-toast {
+    position: absolute; top: 50%; left: 50%; z-index: 5;
+    transform: translate(-50%, -50%) scale(0.75); opacity: 0;
+    background: rgba(15, 12, 28, 0.72); backdrop-filter: blur(6px);
+    padding: 12px 22px; border-radius: 999px;
+    font-size: 18px; font-weight: 800; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 8px; pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .seek-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .seek-toast.back { color: #ff8a80; }
+  .seek-toast.fwd { color: #80d8ff; }
+
+  .progress-track {
+    width: 100%; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #4fc3f7, #7c4dff);
+    transition: width 0.25s linear;
+  }
+
+  .time-row {
+    display: flex; justify-content: center; align-items: center; gap: 8px;
+    font-size: 13px; color: #9498c0; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px; margin-top: -6px;
+  }
+
+  .seek-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+  .seek-btn {
+    height: 78px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.045); color: #eee; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; transition: transform 0.1s, background 0.12s, border-color 0.12s;
+  }
+  .seek-btn:active { transform: scale(0.93); background: rgba(255,255,255,0.09); }
+  .icon-badge {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .seek-btn.back .icon-badge { background: rgba(239, 83, 80, 0.16); }
+  .seek-btn.fwd .icon-badge { background: rgba(79, 195, 247, 0.16); }
+  .seek-btn.back svg { color: #ff8a80; }
+  .seek-btn.fwd svg { color: #4fc3f7; }
+  .seek-btn .sec { font-size: 12.5px; color: #9498c0; font-weight: 600; letter-spacing: 0.3px; }
+
+  .hint {
+    font-size: 11.5px; color: #6b7095; text-align: center; line-height: 1.6;
+    background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+</style>
+</head>
+<body>
+<div class="bg"><span></span><span></span><span></span></div>
+
+<div class="wrap">
+  <h1>유튜브 구간이동</h1>
+  <div class="subtitle">3초 · 5초 단위로 정확하게 앞뒤 이동</div>
+
+  <div class="url-row">
+    <div class="input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.49-1.49"/></svg>
+      <input id="urlInput" type="text" placeholder="유튜브 링크 또는 영상 ID 붙여넣기" inputmode="url">
+    </div>
+    <button id="loadBtn">불러오기</button>
+  </div>
+
+  <div class="player-box" id="playerBox">
+    <div class="placeholder" id="placeholder"><span class="big">▶</span>링크를 붙여넣고 불러오기를 눌러주세요</div>
+    <div id="player"></div>
+    <div class="seek-toast" id="seekToast"></div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="time-row" id="timeRow">--:-- / --:--</div>
+
+  <div class="seek-grid">
+    <button class="seek-btn back" data-sec="-5">
+      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg></span>
+      <span class="sec">5초 뒤로</span>
+    </button>
+    <button class="seek-btn back" data-sec="-3">
+      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></span>
+      <span class="sec">3초 뒤로</span>
+    </button>
+    <button class="seek-btn fwd" data-sec="3">
+      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg></span>
+      <span class="sec">3초 앞으로</span>
+    </button>
+    <button class="seek-btn fwd" data-sec="5">
+      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span>
+      <span class="sec">5초 앞으로</span>
+    </button>
+  </div>
+
+  <div class="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
+</div>
+
+<script>
+  let player = null;
+  let ytReady = false;
+  const urlInput = document.getElementById('urlInput');
+  const loadBtn = document.getElementById('loadBtn');
+  const placeholder = document.getElementById('placeholder');
+  const statusMsg = document.getElementById('statusMsg');
+  const timeRow = document.getElementById('timeRow');
+  const playerBox = document.getElementById('playerBox');
+  const seekToast = document.getElementById('seekToast');
+  const progressFill = document.getElementById('progressFill');
+
+  function extractId(input) {
+    input = input.trim();
+    if (/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+    const patterns = [
+      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+      /[?&]v=([a-zA-Z0-9_-]{11})/
+    ];
+    for (const p of patterns) {
+      const m = input.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  function fmt(t) {
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function showStatus(text) {
+    statusMsg.textContent = text;
+    statusMsg.classList.add('show');
+  }
+  function hideStatus() {
+    statusMsg.classList.remove('show');
+  }
+
+  let toastTimer = null;
+  function showToast(delta) {
+    seekToast.className = 'seek-toast show ' + (delta > 0 ? 'fwd' : 'back');
+    seekToast.textContent = (delta > 0 ? '+' : '') + delta + '초';
+    playerBox.classList.add('pulse');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      seekToast.classList.remove('show');
+      playerBox.classList.remove('pulse');
+    }, 500);
+  }
+
+  // YouTube IFrame API 로드
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+
+  window.onYouTubeIframeAPIReady = function () {
+    ytReady = true;
+  };
+
+  function loadVideo(id) {
+    hideStatus();
+    placeholder.style.display = 'none';
+    if (!ytReady) {
+      const wait = setInterval(() => {
+        if (ytReady) { clearInterval(wait); loadVideo(id); }
+      }, 150);
+      return;
+    }
+    if (player) {
+      player.loadVideoById(id);
+      return;
+    }
+    player = new YT.Player('player', {
+      videoId: id,
+      playerVars: { playsinline: 1, rel: 0 },
+      events: {
+        onReady: () => {},
+        onError: (e) => {
+          const codes = { 2: '잘못된 영상 ID예요.', 5: '재생할 수 없는 영상이에요.', 100: '영상을 찾을 수 없어요.', 101: '이 영상은 외부 재생이 차단되어 있어요.', 150: '이 영상은 외부 재생이 차단되어 있어요.' };
+          showStatus(codes[e.data] || '영상을 불러올 수 없어요.');
+        }
+      }
+    });
+  }
+
+  loadBtn.addEventListener('click', () => {
+    const id = extractId(urlInput.value);
+    if (!id) { showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; }
+    loadVideo(id);
+  });
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') loadBtn.click();
+  });
+
+  document.querySelectorAll('.seek-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!player || typeof player.getCurrentTime !== 'function') return;
+      const delta = parseFloat(btn.dataset.sec);
+      const dur = player.getDuration() || Infinity;
+      const t = Math.max(0, Math.min(dur, player.getCurrentTime() + delta));
+      player.seekTo(t, true);
+      showToast(delta);
+    });
+  });
+
+  setInterval(() => {
+    if (player && typeof player.getCurrentTime === 'function' && player.getDuration) {
+      const dur = player.getDuration();
+      const cur = player.getCurrentTime();
+      if (dur) {
+        timeRow.textContent = fmt(cur) + ' / ' + fmt(dur);
+        progressFill.style.width = Math.min(100, (cur / dur) * 100) + '%';
+      }
+    }
+  }, 400);
+</script>
+</body>
+</html>
