@@ -124,16 +124,29 @@
   .seek-btn.fwd  .icon-badge { background: rgba(79,195,247,0.16); } .seek-btn.fwd svg { color: #4fc3f7; }
   .seek-btn .sec { font-size: 11px; color: #9498c0; font-weight: 700; }
 
-  /* 속도 칩 */
-  .speed-row { display: flex; align-items: center; gap: 7px; }
-  .speed-chips { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-  .chip {
-    height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04); color: #c7cae8; font-size: 12.5px; font-weight: 700;
-    cursor: pointer; transition: all 0.12s;
+  /* 속도 슬라이더 */
+  .speed-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px; }
+  .speed-val {
+    font-size: 14px; font-weight: 800; color: #0e1224;
+    background: linear-gradient(135deg,#4fc3f7,#7c4dff);
+    padding: 2px 10px; border-radius: 999px; cursor: pointer; letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
   }
-  .chip:active { transform: scale(0.93); }
-  .chip.active { background: linear-gradient(135deg,#4fc3f7,#7c4dff); color: #0e1224; border-color: transparent; }
+  .speed-slider {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 8px;
+    border-radius: 999px; outline: none; margin: 4px 0 2px;
+    background: rgba(255,255,255,0.12);
+  }
+  .speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45); border: 2px solid #fff;
+  }
+  .speed-slider::-moz-range-thumb {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; border: 2px solid #fff;
+  }
+  .speed-ticks { display: flex; justify-content: space-between; font-size: 10px; color: #6b7095; margin: 0 2px; }
 
   /* 하단 토글 */
   .bottom-row { display: flex; align-items: center; gap: 10px; }
@@ -192,15 +205,12 @@
       <button class="seek-btn fwd" data-sec="10"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span><span class="sec">10초</span></button>
     </div>
 
-    <div class="label">재생 속도</div>
-    <div class="speed-chips" id="speedChips">
-      <button class="chip" data-rate="0.5">0.5×</button>
-      <button class="chip" data-rate="0.75">0.75×</button>
-      <button class="chip active" data-rate="1">1×</button>
-      <button class="chip" data-rate="1.25">1.25×</button>
-      <button class="chip" data-rate="1.5">1.5×</button>
-      <button class="chip" data-rate="2">2×</button>
+    <div class="speed-head">
+      <span class="label" style="margin:0">재생 속도</span>
+      <span class="speed-val" id="speedVal">1×</span>
     </div>
+    <input type="range" class="speed-slider" id="speedSlider" min="0.5" max="1" step="0.25" value="1">
+    <div class="speed-ticks"><span>0.5×</span><span>0.75×</span><span>1×</span></div>
 
     <div class="bottom-row">
       <div class="toggle on" id="wakeToggle">
@@ -225,7 +235,8 @@
   const playerBox = document.getElementById('playerBox');
   const seekToast = document.getElementById('seekToast');
   const progressFill = document.getElementById('progressFill');
-  const speedChips = document.getElementById('speedChips');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedVal = document.getElementById('speedVal');
   const wakeToggle = document.getElementById('wakeToggle');
 
   function extractId(input) {
@@ -325,15 +336,25 @@
     });
   });
 
-  // ── 재생 속도 ──
-  speedChips.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    currentRate = parseFloat(chip.dataset.rate);
-    speedChips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+  // ── 재생 속도 (슬라이더, 0.25 단위 스냅) ──
+  function fillSlider() {
+    const min = parseFloat(speedSlider.min), max = parseFloat(speedSlider.max);
+    const pct = ((currentRate - min) / (max - min)) * 100;
+    speedSlider.style.background =
+      'linear-gradient(90deg, #4fc3f7 0%, #7c4dff ' + pct + '%, rgba(255,255,255,0.12) ' + pct + '%)';
+  }
+  function setSpeed(r, toast) {
+    currentRate = r;
+    speedVal.textContent = (Number.isInteger(r) ? r : r) + '×';
+    speedSlider.value = r;
+    fillSlider();
     applyRate();
-    showToast(currentRate + '× 속도', 'rate');
-  });
+    if (toast) showToast(currentRate + '× 속도', 'rate');
+  }
+  speedSlider.addEventListener('input', () => setSpeed(parseFloat(speedSlider.value), false));
+  speedSlider.addEventListener('change', () => showToast(currentRate + '× 속도', 'rate'));
+  speedVal.addEventListener('click', () => setSpeed(1, true)); // 탭하면 1×로 리셋
+  fillSlider();
 
   // ── 진행 상태 ──
   setInterval(() => {
