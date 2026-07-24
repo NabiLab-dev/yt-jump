@@ -2,8 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#191233">
 <title>유튜브 구간이동</title>
 <style>
@@ -12,201 +13,210 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: #f0f1f8;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
-    user-select: none;
-    -webkit-user-select: none;
-    position: relative;
-    overflow-x: hidden;
     background: #14101f;
+    overflow: hidden;
+    user-select: none; -webkit-user-select: none;
   }
 
-  /* ── 배경 그라데이션 & 은은한 블롭 ── */
+  /* ── 배경 ── */
   .bg {
     position: fixed; inset: 0; z-index: -1; overflow: hidden;
     background: linear-gradient(160deg, #191233 0%, #140f26 55%, #0f0c1e 100%);
   }
   .bg span {
-    position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.55;
+    position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5;
     animation: float 14s ease-in-out infinite;
   }
   .bg span:nth-child(1) { width: 280px; height: 280px; background: #7c4dff; top: -60px; left: -60px; }
   .bg span:nth-child(2) { width: 260px; height: 260px; background: #2196f3; bottom: -80px; right: -60px; animation-delay: -5s; }
-  .bg span:nth-child(3) { width: 200px; height: 200px; background: #ff4d94; top: 40%; right: -80px; animation-delay: -9s; opacity: 0.35; }
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(18px, -22px) scale(1.08); }
-  }
+  .bg span:nth-child(3) { width: 200px; height: 200px; background: #ff4d94; top: 40%; right: -80px; animation-delay: -9s; opacity: 0.3; }
+  @keyframes float { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(18px,-22px) scale(1.08);} }
   @media (prefers-reduced-motion: reduce) { .bg span { animation: none; } }
 
-  .wrap {
-    width: 100%; max-width: 440px;
-    display: flex; flex-direction: column; gap: 16px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.09);
-    border-radius: 26px;
-    padding: 22px 18px;
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  /* ── 전체 레이아웃 ── */
+  .app {
+    height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   }
 
-  h1 {
-    font-size: 19px; font-weight: 800; text-align: center; letter-spacing: 0.3px;
-    background: linear-gradient(90deg, #9fd8ff, #d9b8ff);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .subtitle { text-align: center; font-size: 12px; color: #8f93b8; margin-top: -8px; }
-
-  .url-row { display: flex; gap: 8px; }
-  .input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
-  .input-wrap svg { position: absolute; left: 14px; width: 16px; height: 16px; color: #7a83a8; pointer-events: none; }
-  #urlInput {
-    width: 100%; height: 48px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.28); color: #eee; padding: 0 14px 0 38px; font-size: 14.5px; outline: none;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  #urlInput::placeholder { color: #6b7095; }
-  #urlInput:focus { border-color: #7c9dff; background: rgba(0,0,0,0.4); }
-  #loadBtn {
-    height: 48px; padding: 0 20px; border-radius: 14px; border: none;
-    background: linear-gradient(135deg, #4fc3f7, #7c4dff); color: #0e1224;
-    font-weight: 800; font-size: 14.5px; cursor: pointer; white-space: nowrap;
-    box-shadow: 0 6px 18px rgba(124, 77, 255, 0.35);
-    transition: transform 0.12s, box-shadow 0.12s;
-  }
-  #loadBtn:active { transform: scale(0.95); box-shadow: 0 3px 10px rgba(124, 77, 255, 0.3); }
-
-  .player-box {
-    width: 100%; aspect-ratio: 16 / 9;
-    background: #000; border-radius: 18px; overflow: hidden;
-    position: relative;
-    display: flex; align-items: center; justify-content: center;
+  .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .videowrap {
+    position: relative; aspect-ratio: 16 / 9;
+    background: #000; border-radius: 16px; overflow: hidden;
     border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.5);
-    transition: box-shadow 0.25s;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
   }
-  .player-box.pulse { box-shadow: 0 0 0 3px rgba(124, 149, 255, 0.55), 0 12px 32px rgba(0,0,0,0.5); }
+  @media (orientation: portrait)  { .videowrap { width: 100%; max-height: 100%; } }
+  @media (orientation: landscape) { .videowrap { height: 100%; max-width: 100%; } }
   #player { width: 100%; height: 100%; }
+
   .placeholder { width: 100%; color: #6b7095; font-size: 13.5px; text-align: center; padding: 20px; line-height: 1.7; }
   .placeholder .big { font-size: 30px; display: block; margin-bottom: 6px; }
   .status-msg {
     position: absolute; inset: 0; display: none;
     align-items: center; justify-content: center; text-align: center;
-    background: rgba(10,8,20,0.82); backdrop-filter: blur(4px);
+    background: rgba(10,8,20,0.85); backdrop-filter: blur(4px);
     color: #ffb74d; font-size: 13.5px; padding: 20px; line-height: 1.6;
   }
   .status-msg.show { display: flex; }
-
   .seek-toast {
     position: absolute; top: 50%; left: 50%; z-index: 5;
-    transform: translate(-50%, -50%) scale(0.75); opacity: 0;
-    background: rgba(15, 12, 28, 0.72); backdrop-filter: blur(6px);
-    padding: 12px 22px; border-radius: 999px;
+    transform: translate(-50%,-50%) scale(0.75); opacity: 0;
+    background: rgba(15,12,28,0.72); backdrop-filter: blur(6px);
+    padding: 10px 20px; border-radius: 999px;
     font-size: 18px; font-weight: 800; letter-spacing: 0.5px;
-    display: flex; align-items: center; gap: 8px; pointer-events: none;
+    pointer-events: none; border: 1px solid rgba(255,255,255,0.12);
     transition: opacity 0.22s ease, transform 0.22s ease;
-    border: 1px solid rgba(255,255,255,0.12);
   }
-  .seek-toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  .seek-toast.back { color: #ff8a80; }
-  .seek-toast.fwd { color: #80d8ff; }
+  .seek-toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .seek-toast.back { color: #ff8a80; } .seek-toast.fwd { color: #80d8ff; } .seek-toast.rate { color: #d9b8ff; }
 
-  .progress-track {
-    width: 100%; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08);
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%; width: 0%; border-radius: 999px;
-    background: linear-gradient(90deg, #4fc3f7, #7c4dff);
-    transition: width 0.25s linear;
+  /* ── 컨트롤 패널 ── */
+  .panel {
+    flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 20px; padding: 12px;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   }
 
-  .time-row {
-    display: flex; justify-content: center; align-items: center; gap: 8px;
-    font-size: 13px; color: #9498c0; font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px; margin-top: -6px;
+  .url-row { display: flex; gap: 8px; }
+  .input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+  .input-wrap svg { position: absolute; left: 12px; width: 15px; height: 15px; color: #7a83a8; pointer-events: none; }
+  #urlInput {
+    width: 100%; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.28); color: #eee; padding: 0 12px 0 34px; font-size: 14px; outline: none;
+    transition: border-color 0.15s, background 0.15s;
   }
+  #urlInput::placeholder { color: #6b7095; }
+  #urlInput:focus { border-color: #7c9dff; background: rgba(0,0,0,0.4); }
+  #loadBtn {
+    height: 44px; padding: 0 18px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #4fc3f7, #7c4dff); color: #0e1224;
+    font-weight: 800; font-size: 14px; cursor: pointer; white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(124,77,255,0.35);
+    transition: transform 0.12s;
+  }
+  #loadBtn:active { transform: scale(0.95); }
 
-  .seek-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+  .progress-track { width: 100%; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg,#4fc3f7,#7c4dff); transition: width 0.25s linear; }
+  .time-row { display: flex; justify-content: center; gap: 8px; font-size: 12.5px; color: #9498c0; font-variant-numeric: tabular-nums; }
+
+  /* 라벨 */
+  .label { font-size: 11px; font-weight: 700; color: #7f83a8; letter-spacing: 0.5px; margin: 0 2px; }
+
+  /* 구간이동 버튼 */
+  .seek-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; }
   .seek-btn {
-    height: 78px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.07);
+    height: 60px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.07);
     background: rgba(255,255,255,0.045); color: #eee; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; transition: transform 0.1s, background 0.12s, border-color 0.12s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    transition: transform 0.1s, background 0.12s;
   }
-  .seek-btn:active { transform: scale(0.93); background: rgba(255,255,255,0.09); }
-  .icon-badge {
-    width: 32px; height: 32px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .seek-btn.back .icon-badge { background: rgba(239, 83, 80, 0.16); }
-  .seek-btn.fwd .icon-badge { background: rgba(79, 195, 247, 0.16); }
-  .seek-btn.back svg { color: #ff8a80; }
-  .seek-btn.fwd svg { color: #4fc3f7; }
-  .seek-btn .sec { font-size: 12.5px; color: #9498c0; font-weight: 600; letter-spacing: 0.3px; }
+  .seek-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.1); }
+  .icon-badge { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .seek-btn.back .icon-badge { background: rgba(239,83,80,0.16); } .seek-btn.back svg { color: #ff8a80; }
+  .seek-btn.fwd  .icon-badge { background: rgba(79,195,247,0.16); } .seek-btn.fwd svg { color: #4fc3f7; }
+  .seek-btn .sec { font-size: 11px; color: #9498c0; font-weight: 700; }
 
-  .hint {
-    font-size: 11.5px; color: #6b7095; text-align: center; line-height: 1.6;
-    background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px 12px;
-    border: 1px solid rgba(255,255,255,0.05);
+  /* 속도 칩 */
+  .speed-row { display: flex; align-items: center; gap: 7px; }
+  .speed-chips { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .chip {
+    height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); color: #c7cae8; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .chip:active { transform: scale(0.93); }
+  .chip.active { background: linear-gradient(135deg,#4fc3f7,#7c4dff); color: #0e1224; border-color: transparent; }
+
+  /* 하단 토글 */
+  .bottom-row { display: flex; align-items: center; gap: 10px; }
+  .toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 8px 12px; flex: 1;
+  }
+  .switch { width: 40px; height: 23px; border-radius: 999px; background: rgba(255,255,255,0.15); position: relative; transition: background 0.18s; flex-shrink: 0; }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:19px; height:19px; border-radius:50%; background:#fff; transition: transform 0.18s; }
+  .toggle.on .switch { background: linear-gradient(135deg,#4fc3f7,#7c4dff); }
+  .toggle.on .switch::after { transform: translateX(17px); }
+  .toggle .txt { font-size: 12.5px; font-weight: 600; color: #c7cae8; }
+  .hint { font-size: 11px; color: #6b7095; line-height: 1.5; flex: 1; }
+
+  /* ── 가로모드: 영상 크게, 패널 오른쪽 ── */
+  @media (orientation: landscape) {
+    .app { flex-direction: row; gap: 12px; }
+    .stage { flex: 1; }
+    .panel { width: 300px; flex-shrink: 0; overflow-y: auto; }
   }
 </style>
 </head>
 <body>
 <div class="bg"><span></span><span></span><span></span></div>
 
-<div class="wrap">
-  <h1>유튜브 구간이동</h1>
-  <div class="subtitle">3초 · 5초 단위로 정확하게 앞뒤 이동</div>
-
-  <div class="url-row">
-    <div class="input-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.49-1.49"/></svg>
-      <input id="urlInput" type="text" placeholder="유튜브 링크 또는 영상 ID 붙여넣기" inputmode="url">
+<div class="app">
+  <div class="stage">
+    <div class="videowrap" id="playerBox">
+      <div class="placeholder" id="placeholder"><span class="big">▶</span>링크를 붙여넣고 불러오기를 눌러주세요<br><span style="font-size:11px;opacity:0.7">폰을 가로로 돌리면 화면이 커져요</span></div>
+      <div id="player"></div>
+      <div class="seek-toast" id="seekToast"></div>
+      <div class="status-msg" id="statusMsg"></div>
     </div>
-    <button id="loadBtn">불러오기</button>
   </div>
 
-  <div class="player-box" id="playerBox">
-    <div class="placeholder" id="placeholder"><span class="big">▶</span>링크를 붙여넣고 불러오기를 눌러주세요</div>
-    <div id="player"></div>
-    <div class="seek-toast" id="seekToast"></div>
-    <div class="status-msg" id="statusMsg"></div>
+  <div class="panel">
+    <div class="url-row">
+      <div class="input-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.49-1.49"/></svg>
+        <input id="urlInput" type="text" placeholder="유튜브 링크 또는 영상 ID" inputmode="url">
+      </div>
+      <button id="loadBtn">불러오기</button>
+    </div>
+
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="time-row" id="timeRow">--:-- / --:--</div>
+
+    <div class="label">구간 이동</div>
+    <div class="seek-grid">
+      <button class="seek-btn back" data-sec="-10"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg></span><span class="sec">10초</span></button>
+      <button class="seek-btn back" data-sec="-5"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg></span><span class="sec">5초</span></button>
+      <button class="seek-btn back" data-sec="-3"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></span><span class="sec">3초</span></button>
+      <button class="seek-btn fwd" data-sec="3"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg></span><span class="sec">3초</span></button>
+      <button class="seek-btn fwd" data-sec="5"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span><span class="sec">5초</span></button>
+      <button class="seek-btn fwd" data-sec="10"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span><span class="sec">10초</span></button>
+    </div>
+
+    <div class="label">재생 속도</div>
+    <div class="speed-chips" id="speedChips">
+      <button class="chip" data-rate="0.5">0.5×</button>
+      <button class="chip" data-rate="0.75">0.75×</button>
+      <button class="chip active" data-rate="1">1×</button>
+      <button class="chip" data-rate="1.25">1.25×</button>
+      <button class="chip" data-rate="1.5">1.5×</button>
+      <button class="chip" data-rate="2">2×</button>
+    </div>
+
+    <div class="bottom-row">
+      <div class="toggle on" id="wakeToggle">
+        <div class="switch"></div>
+        <span class="txt">화면 꺼짐 방지</span>
+      </div>
+    </div>
+    <div class="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
   </div>
-
-  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-  <div class="time-row" id="timeRow">--:-- / --:--</div>
-
-  <div class="seek-grid">
-    <button class="seek-btn back" data-sec="-5">
-      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg></span>
-      <span class="sec">5초 뒤로</span>
-    </button>
-    <button class="seek-btn back" data-sec="-3">
-      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></span>
-      <span class="sec">3초 뒤로</span>
-    </button>
-    <button class="seek-btn fwd" data-sec="3">
-      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg></span>
-      <span class="sec">3초 앞으로</span>
-    </button>
-    <button class="seek-btn fwd" data-sec="5">
-      <span class="icon-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span>
-      <span class="sec">5초 앞으로</span>
-    </button>
-  </div>
-
-  <div class="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
 </div>
 
 <script>
-  let player = null;
-  let ytReady = false;
+  let player = null, ytReady = false;
+  let currentRate = 1;
+  let keepAwake = true, wakeLock = null;
+
   const urlInput = document.getElementById('urlInput');
   const loadBtn = document.getElementById('loadBtn');
   const placeholder = document.getElementById('placeholder');
@@ -215,6 +225,8 @@
   const playerBox = document.getElementById('playerBox');
   const seekToast = document.getElementById('seekToast');
   const progressFill = document.getElementById('progressFill');
+  const speedChips = document.getElementById('speedChips');
+  const wakeToggle = document.getElementById('wakeToggle');
 
   function extractId(input) {
     input = input.trim();
@@ -225,69 +237,69 @@
       /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
       /[?&]v=([a-zA-Z0-9_-]{11})/
     ];
-    for (const p of patterns) {
-      const m = input.match(p);
-      if (m) return m[1];
-    }
+    for (const p of patterns) { const m = input.match(p); if (m) return m[1]; }
     return null;
   }
-
   function fmt(t) {
     if (!isFinite(t) || t < 0) t = 0;
-    const m = Math.floor(t / 60);
-    const s = Math.floor(t % 60);
+    const m = Math.floor(t / 60), s = Math.floor(t % 60);
     return m + ':' + String(s).padStart(2, '0');
   }
-
-  function showStatus(text) {
-    statusMsg.textContent = text;
-    statusMsg.classList.add('show');
-  }
-  function hideStatus() {
-    statusMsg.classList.remove('show');
-  }
+  function showStatus(t) { statusMsg.textContent = t; statusMsg.classList.add('show'); }
+  function hideStatus() { statusMsg.classList.remove('show'); }
 
   let toastTimer = null;
-  function showToast(delta) {
-    seekToast.className = 'seek-toast show ' + (delta > 0 ? 'fwd' : 'back');
-    seekToast.textContent = (delta > 0 ? '+' : '') + delta + '초';
-    playerBox.classList.add('pulse');
+  function showToast(text, cls) {
+    seekToast.className = 'seek-toast show ' + cls;
+    seekToast.textContent = text;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      seekToast.classList.remove('show');
-      playerBox.classList.remove('pulse');
-    }, 500);
+    toastTimer = setTimeout(() => seekToast.classList.remove('show'), 550);
   }
 
-  // YouTube IFrame API 로드
+  // ── 화면 꺼짐 방지 (Wake Lock) ──
+  async function requestWakeLock() {
+    if (!keepAwake) return;
+    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+  }
+  async function releaseWakeLock() {
+    try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && keepAwake && player) requestWakeLock();
+  });
+  wakeToggle.addEventListener('click', () => {
+    keepAwake = !keepAwake;
+    wakeToggle.classList.toggle('on', keepAwake);
+    if (keepAwake) requestWakeLock(); else releaseWakeLock();
+  });
+
+  // ── YouTube IFrame API ──
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(tag);
+  window.onYouTubeIframeAPIReady = () => { ytReady = true; };
 
-  window.onYouTubeIframeAPIReady = function () {
-    ytReady = true;
-  };
+  function applyRate() { if (player && player.setPlaybackRate) player.setPlaybackRate(currentRate); }
 
   function loadVideo(id) {
     hideStatus();
     placeholder.style.display = 'none';
+    requestWakeLock();
     if (!ytReady) {
-      const wait = setInterval(() => {
-        if (ytReady) { clearInterval(wait); loadVideo(id); }
-      }, 150);
+      const wait = setInterval(() => { if (ytReady) { clearInterval(wait); loadVideo(id); } }, 150);
       return;
     }
-    if (player) {
-      player.loadVideoById(id);
-      return;
-    }
+    if (player) { player.loadVideoById(id); applyRate(); return; }
     player = new YT.Player('player', {
       videoId: id,
       playerVars: { playsinline: 1, rel: 0 },
       events: {
-        onReady: () => {},
+        onReady: () => applyRate(),
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING) { applyRate(); requestWakeLock(); }
+        },
         onError: (e) => {
-          const codes = { 2: '잘못된 영상 ID예요.', 5: '재생할 수 없는 영상이에요.', 100: '영상을 찾을 수 없어요.', 101: '이 영상은 외부 재생이 차단되어 있어요.', 150: '이 영상은 외부 재생이 차단되어 있어요.' };
+          const codes = { 2:'잘못된 영상 ID예요.', 5:'재생할 수 없는 영상이에요.', 100:'영상을 찾을 수 없어요.', 101:'이 영상은 외부 재생이 차단되어 있어요.', 150:'이 영상은 외부 재생이 차단되어 있어요.' };
           showStatus(codes[e.data] || '영상을 불러올 수 없어요.');
         }
       }
@@ -296,13 +308,12 @@
 
   loadBtn.addEventListener('click', () => {
     const id = extractId(urlInput.value);
-    if (!id) { showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; }
+    if (!id) { placeholder.style.display = 'none'; showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; }
     loadVideo(id);
   });
-  urlInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') loadBtn.click();
-  });
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBtn.click(); });
 
+  // ── 구간 이동 ──
   document.querySelectorAll('.seek-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (!player || typeof player.getCurrentTime !== 'function') return;
@@ -310,14 +321,24 @@
       const dur = player.getDuration() || Infinity;
       const t = Math.max(0, Math.min(dur, player.getCurrentTime() + delta));
       player.seekTo(t, true);
-      showToast(delta);
+      showToast((delta > 0 ? '+' : '') + delta + '초', delta > 0 ? 'fwd' : 'back');
     });
   });
 
+  // ── 재생 속도 ──
+  speedChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    currentRate = parseFloat(chip.dataset.rate);
+    speedChips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+    applyRate();
+    showToast(currentRate + '× 속도', 'rate');
+  });
+
+  // ── 진행 상태 ──
   setInterval(() => {
     if (player && typeof player.getCurrentTime === 'function' && player.getDuration) {
-      const dur = player.getDuration();
-      const cur = player.getCurrentTime();
+      const dur = player.getDuration(), cur = player.getCurrentTime();
       if (dur) {
         timeRow.textContent = fmt(cur) + ' / ' + fmt(dur);
         progressFill.style.width = Math.min(100, (cur / dur) * 100) + '%';
