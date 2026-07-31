@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="구간이동">
 <meta name="theme-color" content="#191233">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>유튜브 · 내 영상 구간이동</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -93,15 +97,16 @@
   .seek-btn.fwd  .icon-badge { background: rgba(79,195,247,0.16); } .seek-btn.fwd svg { color: #4fc3f7; }
   .seek-btn .sec { font-size: 11px; color: #9498c0; font-weight: 700; }
 
-  /* 속도 슬라이더 */
-  .speed-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px; }
-  .speed-val { font-size: 14px; font-weight: 800; color: #0e1224; background: linear-gradient(135deg,#4fc3f7,#7c4dff);
-    padding: 2px 10px; border-radius: 999px; cursor: pointer; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
-  .speed-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px; outline: none; margin: 4px 0 2px; background: rgba(255,255,255,0.12); }
-  .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%;
-    background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.45); border: 2px solid #fff; }
-  .speed-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg,#4fc3f7,#7c4dff); cursor: pointer; border: 2px solid #fff; }
-  .speed-ticks { display: flex; justify-content: space-between; font-size: 10px; color: #6b7095; margin: 0 2px; }
+  /* 속도 스테퍼 */
+  .stepper { display: flex; align-items: center; gap: 8px; }
+  .step-btn { width: 56px; height: 48px; flex-shrink: 0; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.05); color: #fff; font-size: 26px; font-weight: 600; cursor: pointer; line-height: 1; transition: transform 0.1s, background 0.12s; }
+  .step-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.12); }
+  .step-btn:disabled { opacity: 0.35; }
+  .step-val { flex: 1; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg,#4fc3f7,#7c4dff); color: #0e1224; font-size: 20px; font-weight: 800;
+    cursor: pointer; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+  .step-val small { font-size: 11px; font-weight: 700; opacity: 0.7; margin-left: 5px; }
 
   .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 8px 12px; }
@@ -173,12 +178,12 @@
       <button class="seek-btn fwd" data-sec="10"><span class="icon-badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6L13 6zm-.5 6L4 6v12l8.5-6z"/></svg></span><span class="sec">10초</span></button>
     </div>
 
-    <div class="speed-head">
-      <span class="label" style="margin:0">재생 속도</span>
-      <span class="speed-val" id="speedVal">1×</span>
+    <div class="label" id="speedLabel">재생 속도 · 0.25씩</div>
+    <div class="stepper">
+      <button class="step-btn" id="speedDown">−</button>
+      <div class="step-val" id="speedVal">1×</div>
+      <button class="step-btn" id="speedUp">+</button>
     </div>
-    <input type="range" class="speed-slider" id="speedSlider" min="0.5" max="1" step="0.25" value="1">
-    <div class="speed-ticks" id="speedTicks"><span>0.5×</span><span>0.75×</span><span>1×</span></div>
 
     <div class="toggle on" id="wakeToggle"><div class="switch"></div><span class="txt">화면 꺼짐 방지</span></div>
     <div class="hint" id="hint">임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.</div>
@@ -201,7 +206,7 @@
   const ytControls = $('ytControls'), fileControls = $('fileControls');
   const fileInput = $('fileInput'), pickBtn = $('pickBtn'), fname = $('fname');
   const localVideo = $('localVideo');
-  const speedSlider = $('speedSlider'), speedVal = $('speedVal'), speedTicks = $('speedTicks');
+  const speedVal = $('speedVal'), speedLabel = $('speedLabel'), speedDown = $('speedDown'), speedUp = $('speedUp');
   const wakeToggle = $('wakeToggle'), hint = $('hint');
 
   // ── 공통 헬퍼 (활성 소스로 위임) ──
@@ -223,25 +228,33 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible' && keepAwake) requestWakeLock(); });
   wakeToggle.addEventListener('click', () => { keepAwake = !keepAwake; wakeToggle.classList.toggle('on', keepAwake); if (keepAwake) requestWakeLock(); else releaseWakeLock(); });
 
-  // ── 속도 슬라이더 ──
-  function fillSlider() {
-    const min = parseFloat(speedSlider.min), max = parseFloat(speedSlider.max);
-    const pct = ((currentRate - min) / (max - min)) * 100;
-    speedSlider.style.background = 'linear-gradient(90deg, #4fc3f7 0%, #7c4dff ' + pct + '%, rgba(255,255,255,0.12) ' + pct + '%)';
-  }
+  // ── 속도 스테퍼 ──
+  // 모드별 [최소, 최대, 단위]
+  function speedCfg() { return mode==='yt' ? { min:0.5, max:1, step:0.25 } : { min:0.25, max:2, step:0.05 }; }
   function rateText(r) { return (Math.round(r*100)/100) + '×'; }
-  function configSpeedForMode() {
-    if (mode==='yt') { speedSlider.min='0.5'; speedSlider.max='1'; speedSlider.step='0.25'; speedTicks.innerHTML='<span>0.5×</span><span>0.75×</span><span>1×</span>'; currentRate = ytRate; }
-    else { speedSlider.min='0.25'; speedSlider.max='2'; speedSlider.step='0.05'; speedTicks.innerHTML='<span>0.25×</span><span>1×</span><span>2×</span>'; currentRate = localRate; }
-    speedSlider.value = currentRate; speedVal.textContent = rateText(currentRate); fillSlider();
+  function renderSpeed() {
+    const { min, max } = speedCfg();
+    speedVal.textContent = rateText(currentRate);
+    speedDown.disabled = currentRate <= min + 1e-9;
+    speedUp.disabled = currentRate >= max - 1e-9;
   }
-  speedSlider.addEventListener('input', () => {
-    currentRate = Math.round(parseFloat(speedSlider.value)*100)/100;
-    if (mode==='yt') ytRate = currentRate; else localRate = currentRate;
-    speedVal.textContent = rateText(currentRate); fillSlider(); setRate(currentRate);
-  });
-  speedSlider.addEventListener('change', () => showToast(rateText(currentRate) + ' 속도', 'rate'));
-  speedVal.addEventListener('click', () => { currentRate = 1; if (mode==='yt') ytRate=1; else localRate=1; speedSlider.value=1; speedVal.textContent='1×'; fillSlider(); setRate(1); showToast('1× 속도', 'rate'); });
+  function configSpeedForMode() {
+    const cfg = speedCfg();
+    currentRate = mode==='yt' ? ytRate : localRate;
+    speedLabel.textContent = '재생 속도 · ' + cfg.step + '씩';
+    renderSpeed();
+  }
+  function nudgeSpeed(dir) {
+    const { min, max, step } = speedCfg();
+    let r = Math.round((currentRate + dir*step) * 100) / 100;
+    r = Math.max(min, Math.min(max, r));
+    currentRate = r;
+    if (mode==='yt') ytRate = r; else localRate = r;
+    setRate(r); renderSpeed(); showToast(rateText(r) + ' 속도', 'rate');
+  }
+  speedDown.addEventListener('click', () => nudgeSpeed(-1));
+  speedUp.addEventListener('click', () => nudgeSpeed(1));
+  speedVal.addEventListener('click', () => { currentRate = 1; if (mode==='yt') ytRate=1; else localRate=1; setRate(1); renderSpeed(); showToast('1× 속도', 'rate'); });
 
   // ── 탭 전환 ──
   document.querySelectorAll('.tab').forEach(tab => {
@@ -316,7 +329,7 @@
   // ── 진행 상태 (공통) ──
   setInterval(() => { const d = duration(), c = curTime(); if (d) { timeRow.textContent = fmt(c) + ' / ' + fmt(d); progressFill.style.width = Math.min(100, (c/d)*100) + '%'; } }, 300);
 
-  fillSlider();
+  renderSpeed();
 </script>
 </body>
 </html>
