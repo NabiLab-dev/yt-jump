@@ -80,7 +80,21 @@
   .pick-btn { width: 100%; height: 48px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.22);
     background: rgba(255,255,255,0.04); color: #c7cae8; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.12s; }
   .pick-btn:active { background: rgba(255,255,255,0.09); }
-  .fname { font-size: 11.5px; color: #7f83a8; text-align: center; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 2px 6px; }
+  .storage { font-size: 10px; color: #6b7095; }
+  .saved-list { display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .saved-item { display: flex; align-items: center; gap: 9px; padding: 6px; border-radius: 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+  .saved-item:active { background: rgba(255,255,255,0.1); }
+  .saved-item.playing { border-color: #7c9dff; background: rgba(124,157,255,0.14); }
+  .saved-thumb { width: 56px; height: 34px; border-radius: 7px; object-fit: cover; background: #000; flex-shrink: 0; }
+  .saved-info { flex: 1; min-width: 0; }
+  .saved-name { font-size: 12.5px; color: #e7e9f5; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .saved-dur { font-size: 11px; color: #8f93b8; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .saved-del { width: 30px; height: 30px; flex-shrink: 0; border: none; border-radius: 8px;
+    background: rgba(239,83,80,0.14); color: #ff8a80; font-size: 17px; line-height: 1; cursor: pointer; }
+  .saved-del:active { background: rgba(239,83,80,0.3); }
+  .saved-empty { font-size: 11.5px; color: #6b7095; text-align: center; padding: 12px; }
 
   .progress-track { width: 100%; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
   .progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg,#4fc3f7,#7c4dff); transition: width 0.25s linear; }
@@ -161,8 +175,12 @@
     <!-- 내 파일 컨트롤 -->
     <div id="fileControls" style="display:none">
       <input type="file" id="fileInput" accept="video/*" style="display:none">
-      <button class="pick-btn" id="pickBtn">📁 갤러리에서 영상 선택</button>
-      <div class="fname" id="fname"></div>
+      <button class="pick-btn" id="pickBtn">＋ 갤러리에서 영상 추가</button>
+      <div class="saved-head" id="savedHead" style="display:none">
+        <span class="label" style="margin:0">저장된 영상</span>
+        <span class="storage" id="storageInfo"></span>
+      </div>
+      <div class="saved-list" id="savedList"></div>
     </div>
 
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
@@ -204,7 +222,8 @@
   const statusMsg = $('statusMsg'), timeRow = $('timeRow'), progressFill = $('progressFill');
   const seekToast = $('seekToast');
   const ytControls = $('ytControls'), fileControls = $('fileControls');
-  const fileInput = $('fileInput'), pickBtn = $('pickBtn'), fname = $('fname');
+  const fileInput = $('fileInput'), pickBtn = $('pickBtn');
+  const savedList = $('savedList'), savedHead = $('savedHead'), storageInfo = $('storageInfo');
   const localVideo = $('localVideo');
   const speedVal = $('speedVal'), speedLabel = $('speedLabel'), speedDown = $('speedDown'), speedUp = $('speedUp');
   const wakeToggle = $('wakeToggle'), hint = $('hint');
@@ -269,7 +288,7 @@
       fileControls.style.display = m==='local' ? 'block' : 'none';
       hint.textContent = m==='yt'
         ? '임베드가 허용된 영상만 재생돼요. 일부 영상은 저작권/설정 때문에 안 열릴 수 있어요.'
-        : '파일은 폰 안에서만 재생되고 어디에도 업로드되지 않아요. 0.05단위로 배속을 조절할 수 있어요.';
+        : '추가한 영상은 앱에 저장돼 다음에도 목록에서 바로 열 수 있어요. 폰 밖으로 업로드되지 않아요.';
       configSpeedForMode();
     });
   });
@@ -299,21 +318,127 @@
   loadBtn.addEventListener('click', () => { const id = extractId(urlInput.value); if (!id) { ytPlaceholder.style.display='none'; showStatus('유효한 유튜브 링크나 영상 ID가 아니에요.'); return; } loadVideo(id); });
   urlInput.addEventListener('keydown', (e) => { if (e.key==='Enter') loadBtn.click(); });
 
-  // ── 내 파일 ──
-  pickBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    const f = fileInput.files[0]; if (!f) return;
-    if (localVideo.src) URL.revokeObjectURL(localVideo.src);
-    localVideo.src = URL.createObjectURL(f);
-    fname.textContent = f.name;
+  // ── 내 파일 (저장 목록 · IndexedDB) ──
+  let db = null, currentSavedId = null, localObjURL = null;
+
+  function openDB() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('ytjump', 1);
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs', { keyPath: 'id' });
+      };
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  }
+  const store = (name, mode) => db.transaction(name, mode).objectStore(name);
+  const idb = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  async function addVideo(meta, blob) { await idb(store('meta','readwrite').put(meta)); await idb(store('blobs','readwrite').put({ id: meta.id, blob })); }
+  async function getAllMeta() { return await idb(store('meta','readonly').getAll()); }
+  async function getBlob(id) { const r = await idb(store('blobs','readonly').get(id)); return r ? r.blob : null; }
+  async function deleteVideo(id) { await idb(store('meta','readwrite').delete(id)); await idb(store('blobs','readwrite').delete(id)); }
+
+  // 썸네일 + 길이 추출
+  function makeThumb(file) {
+    return new Promise((resolve) => {
+      const v = document.createElement('video');
+      v.preload = 'metadata'; v.muted = true; v.playsInline = true;
+      const url = URL.createObjectURL(file); v.src = url;
+      let done = false;
+      const finish = (thumb, dur) => { if (done) return; done = true; URL.revokeObjectURL(url); resolve({ thumb, duration: dur || 0 }); };
+      v.onloadeddata = () => { try { v.currentTime = Math.min(1, (v.duration || 2) / 2); } catch (e) { finish(null, v.duration); } };
+      v.onseeked = () => {
+        try {
+          const w = 112, h = 68, c = document.createElement('canvas'); c.width = w; c.height = h;
+          const ctx = c.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+          const ar = (v.videoWidth || 16) / (v.videoHeight || 9); let dw = w, dh = h;
+          if (ar > w / h) dh = w / ar; else dw = h * ar;
+          ctx.drawImage(v, (w - dw) / 2, (h - dh) / 2, dw, dh);
+          finish(c.toDataURL('image/jpeg', 0.6), v.duration);
+        } catch (e) { finish(null, v.duration); }
+      };
+      v.onerror = () => finish(null, 0);
+      setTimeout(() => finish(null, v.duration || 0), 5000);
+    });
+  }
+
+  async function updateStorage() {
+    if (!navigator.storage || !navigator.storage.estimate) { storageInfo.textContent = ''; return; }
+    try { const { usage } = await navigator.storage.estimate(); storageInfo.textContent = '사용 ' + (usage / 1048576).toFixed(0) + 'MB'; } catch (e) {}
+  }
+  function highlightPlaying() { [...savedList.children].forEach(el => el.classList.toggle('playing', el.dataset.id === String(currentSavedId))); }
+
+  async function renderSavedList() {
+    if (!db) return;
+    const metas = (await getAllMeta()).sort((a, b) => b.addedAt - a.addedAt);
+    savedHead.style.display = metas.length ? 'flex' : 'none';
+    savedList.innerHTML = '';
+    if (!metas.length) { savedList.innerHTML = '<div class="saved-empty">등록된 영상이 없어요.<br>위 버튼으로 추가하세요.</div>'; updateStorage(); return; }
+    for (const m of metas) {
+      const item = document.createElement('div');
+      item.className = 'saved-item' + (m.id === currentSavedId ? ' playing' : '');
+      item.dataset.id = m.id;
+      item.innerHTML = (m.thumb ? '<img class="saved-thumb" src="' + m.thumb + '">' : '<div class="saved-thumb"></div>')
+        + '<div class="saved-info"><div class="saved-name"></div><div class="saved-dur">' + fmt(m.duration) + '</div></div>'
+        + '<button class="saved-del" title="삭제">×</button>';
+      item.querySelector('.saved-name').textContent = m.name;
+      item.addEventListener('click', (e) => { if (e.target.closest('.saved-del')) return; playSaved(m.id); });
+      item.querySelector('.saved-del').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await deleteVideo(m.id);
+        if (currentSavedId === m.id) currentSavedId = null;
+        renderSavedList();
+      });
+      savedList.appendChild(item);
+    }
+    updateStorage();
+  }
+
+  async function playSaved(id) {
+    const blob = await getBlob(id); if (!blob) return;
+    if (localObjURL) URL.revokeObjectURL(localObjURL);
+    localObjURL = URL.createObjectURL(blob);
+    localVideo.src = localObjURL;
     localPlaceholder.style.display = 'none';
     localVideo.style.display = 'block';
     localVideo.playbackRate = localRate;
-    localVideo.play().catch(()=>{});
+    localVideo.play().catch(() => {});
+    currentSavedId = id; highlightPlaying();
     requestWakeLock();
+  }
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0]; if (!f) return;
+    fileInput.value = '';
+    if (!db) { try { db = await openDB(); } catch (e) { alert('저장소를 열 수 없어요.'); return; } }
+    pickBtn.disabled = true; const orig = pickBtn.textContent; pickBtn.textContent = '저장 중…';
+    try {
+      const { thumb, duration } = await makeThumb(f);
+      const id = Date.now();
+      await addVideo({ id, name: f.name, duration, size: f.size, thumb, addedAt: id }, f);
+      await renderSavedList();
+      playSaved(id);
+    } catch (err) {
+      alert('저장 실패: 저장 공간이 부족하거나 지원하지 않는 형식일 수 있어요.');
+    } finally {
+      pickBtn.disabled = false; pickBtn.textContent = orig;
+    }
   });
+
   localVideo.addEventListener('loadedmetadata', () => { localVideo.playbackRate = localRate; });
   localVideo.addEventListener('play', () => requestWakeLock());
+
+  // 저장소 초기화
+  (async function initLibrary() {
+    try {
+      db = await openDB();
+      if (navigator.storage && navigator.storage.persist) { try { await navigator.storage.persist(); } catch (e) {} }
+      await renderSavedList();
+    } catch (e) { /* IndexedDB 사용 불가 시 무시 */ }
+  })();
 
   // ── 구간 이동 (공통) ──
   document.querySelectorAll('.seek-btn').forEach(btn => {
