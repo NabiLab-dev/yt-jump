@@ -90,9 +90,14 @@
   .saved-thumb { width: 56px; height: 34px; border-radius: 7px; object-fit: cover; background: #000; flex-shrink: 0; }
   .saved-info { flex: 1; min-width: 0; }
   .saved-name { font-size: 12.5px; color: #e7e9f5; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .saved-name-input { width: 100%; font-size: 12.5px; color: #e7e9f5; font-weight: 600; font-family: inherit;
+    background: rgba(0,0,0,0.35); border: 1px solid #7c9dff; border-radius: 6px; padding: 3px 6px; outline: none; }
   .saved-dur { font-size: 11px; color: #8f93b8; font-variant-numeric: tabular-nums; margin-top: 1px; }
-  .saved-del { width: 30px; height: 30px; flex-shrink: 0; border: none; border-radius: 8px;
-    background: rgba(239,83,80,0.14); color: #ff8a80; font-size: 17px; line-height: 1; cursor: pointer; }
+  .saved-edit, .saved-del { width: 30px; height: 30px; flex-shrink: 0; border: none; border-radius: 8px;
+    font-size: 15px; line-height: 1; cursor: pointer; }
+  .saved-edit { background: rgba(124,157,255,0.14); color: #9db4ff; }
+  .saved-edit:active { background: rgba(124,157,255,0.3); }
+  .saved-del { background: rgba(239,83,80,0.14); color: #ff8a80; font-size: 17px; }
   .saved-del:active { background: rgba(239,83,80,0.3); }
   .saved-empty { font-size: 11.5px; color: #6b7095; text-align: center; padding: 12px; }
 
@@ -339,6 +344,7 @@
   async function getAllMeta() { return await idb(store('meta','readonly').getAll()); }
   async function getBlob(id) { const r = await idb(store('blobs','readonly').get(id)); return r ? r.blob : null; }
   async function deleteVideo(id) { await idb(store('meta','readwrite').delete(id)); await idb(store('blobs','readwrite').delete(id)); }
+  async function renameVideo(id, name) { const m = await idb(store('meta','readonly').get(id)); if (!m) return; m.name = name; await idb(store('meta','readwrite').put(m)); }
 
   // 썸네일 + 길이 추출
   function makeThumb(file) {
@@ -382,9 +388,37 @@
       item.dataset.id = m.id;
       item.innerHTML = (m.thumb ? '<img class="saved-thumb" src="' + m.thumb + '">' : '<div class="saved-thumb"></div>')
         + '<div class="saved-info"><div class="saved-name"></div><div class="saved-dur">' + fmt(m.duration) + '</div></div>'
+        + '<button class="saved-edit" title="이름 변경">✎</button>'
         + '<button class="saved-del" title="삭제">×</button>';
       item.querySelector('.saved-name').textContent = m.name;
-      item.addEventListener('click', (e) => { if (e.target.closest('.saved-del')) return; playSaved(m.id); });
+      item.addEventListener('click', (e) => { if (e.target.closest('.saved-del') || e.target.closest('.saved-edit')) return; playSaved(m.id); });
+
+      function startRename() {
+        const info = item.querySelector('.saved-info');
+        const nameEl = info.querySelector('.saved-name');
+        const input = document.createElement('input');
+        input.className = 'saved-name-input';
+        input.value = m.name;
+        input.maxLength = 80;
+        nameEl.replaceWith(input);
+        input.focus(); input.select();
+        let done = false;
+        async function commit() {
+          if (done) return; done = true;
+          const newName = input.value.trim() || m.name;
+          if (newName !== m.name) { m.name = newName; await renameVideo(m.id, newName); }
+          renderSavedList();
+        }
+        input.addEventListener('keydown', (e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter') input.blur();
+          if (e.key === 'Escape') { done = true; renderSavedList(); }
+        });
+        input.addEventListener('click', (e) => e.stopPropagation());
+        input.addEventListener('blur', commit);
+      }
+      item.querySelector('.saved-edit').addEventListener('click', (e) => { e.stopPropagation(); startRename(); });
+
       item.querySelector('.saved-del').addEventListener('click', async (e) => {
         e.stopPropagation();
         await deleteVideo(m.id);
